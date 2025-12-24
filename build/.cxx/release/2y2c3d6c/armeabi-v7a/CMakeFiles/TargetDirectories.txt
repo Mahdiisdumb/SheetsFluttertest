@@ -1,2 +1,0 @@
-C:/Users/Mahdi/source/repos/SheetsFluttertest/build/.cxx/release/2y2c3d6c/armeabi-v7a/CMakeFiles/edit_cache.dir
-C:/Users/Mahdi/source/repos/SheetsFluttertest/build/.cxx/release/2y2c3d6c/armeabi-v7a/CMakeFiles/rebuild_cache.dir
