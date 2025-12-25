@@ -1,0 +1,28 @@
+^C:\USERS\MAHDI\SOURCE\REPOS\SHEETSFLUTTERTEST\BUILD\WINDOWS\X64\CMAKEFILES\59D48012904153F2281423226B31A738\FLUTTER_WINDOWS.DLL.RULE
+setlocal
+"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E env FLUTTER_ROOT=C:\Users\Mahdi\flutter\flutter PROJECT_DIR=C:\Users\Mahdi\source\repos\SheetsFluttertest FLUTTER_ROOT=C:\Users\Mahdi\flutter\flutter FLUTTER_EPHEMERAL_DIR=C:\Users\Mahdi\source\repos\SheetsFluttertest\windows\flutter\ephemeral PROJECT_DIR=C:\Users\Mahdi\source\repos\SheetsFluttertest FLUTTER_TARGET=lib\main.dart DART_DEFINES=RkxVVFRFUl9WRVJTSU9OPTMuMzguNQ==,RkxVVFRFUl9DSEFOTkVMPXN0YWJsZQ==,RkxVVFRFUl9HSVRfVVJMPWh0dHBzOi8vZ2l0aHViLmNvbS9mbHV0dGVyL2ZsdXR0ZXIuZ2l0,RkxVVFRFUl9GUkFNRVdPUktfUkVWSVNJT049ZjZmZjE1MjlmZA==,RkxVVFRFUl9FTkdJTkVfUkVWSVNJT049MTUyN2FlMGVjNQ==,RkxVVFRFUl9EQVJUX1ZFUlNJT049My4xMC40 DART_OBFUSCATION=false TRACK_WIDGET_CREATION=true TREE_SHAKE_ICONS=true PACKAGE_CONFIG=C:\Users\Mahdi\source\repos\SheetsFluttertest\.dart_tool\package_config.json C:/Users/Mahdi/flutter/flutter/packages/flutter_tools/bin/tool_backend.bat windows-x64 Release
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\MAHDI\SOURCE\REPOS\SHEETSFLUTTERTEST\BUILD\WINDOWS\X64\CMAKEFILES\CFAAC3C8F812F5D6403536237F8DE9CC\FLUTTER_ASSEMBLE.RULE
+setlocal
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\MAHDI\SOURCE\REPOS\SHEETSFLUTTERTEST\WINDOWS\FLUTTER\CMAKELISTS.TXT
+setlocal
+"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/Users/Mahdi/source/repos/SheetsFluttertest/windows -BC:/Users/Mahdi/source/repos/SheetsFluttertest/build/windows/x64 --check-stamp-file C:/Users/Mahdi/source/repos/SheetsFluttertest/build/windows/x64/flutter/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
