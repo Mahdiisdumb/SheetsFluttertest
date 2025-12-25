@@ -124,3 +124,5 @@ assets/credential.json
 /build/flutter_assets
 /build/windows
 /build/windows
+/build
+/build
