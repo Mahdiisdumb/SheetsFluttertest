@@ -1,11 +1,16 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
+
 import 'package:googleapis/sheets/v4.dart' as sheets;
 import 'package:googleapis_auth/auth_io.dart' as auth;
-import 'package:flutter/services.dart' show rootBundle; 
+import 'package:device_info_plus/device_info_plus.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -13,12 +18,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sheets Uploader',
-      home: const SheetsUploader(),
+    return const MaterialApp(
+      home: SheetsUploader(),
+      debugShowCheckedModeBanner: false,
     );
   }
-} 
+}
 
 class SheetsUploader extends StatefulWidget {
   const SheetsUploader({super.key});
@@ -28,145 +33,155 @@ class SheetsUploader extends StatefulWidget {
 }
 
 class _SheetsUploaderState extends State<SheetsUploader> {
-  final rowController = TextEditingController();
-  final colController = TextEditingController();
-  final dataController = TextEditingController();
+  final rowCtrl = TextEditingController();
+  final colCtrl = TextEditingController();
+  final dataCtrl = TextEditingController();
 
-  bool uploading = false;
+  bool busy = false;
 
-  Future<void> uploadToSheet() async {
-    setState(() => uploading = true);
+  Future<String> getUploaderName() async {
+    if (kIsWeb) {
+      throw UnsupportedError('Web has no environment username');
+    }
 
+    if (Platform.isWindows) {
+      return Platform.environment['USERNAME'] ?? 'UnknownWindowsUser';
+    }
+
+    if (Platform.isAndroid) {
+      final info = await DeviceInfoPlugin().androidInfo;
+      return '${info.manufacturer} ${info.model}';
+    }
+
+    return 'UnknownDevice';
+  }
+
+  Future<void> upload() async {
+    if (kIsWeb) {
+      _snack(
+        'Service accounts and environment usernames do not work on Web.',
+        error: true,
+      );
+      return;
+    }
+
+    final row = int.tryParse(rowCtrl.text.trim());
+    final col = colCtrl.text.trim().toUpperCase();
+    final rawValue = dataCtrl.text;
+
+    if (row == null || row <= 0 || col.isEmpty || rawValue.isEmpty) {
+      _snack('Invalid input', error: true);
+      return;
+    }
+
+    setState(() => busy = true);
     auth.AutoRefreshingAuthClient? client;
-    Map<String, dynamic>? credentialsJson;
-    String? serviceAccountEmail;
 
     try {
-      // Validate inputs early to fail fast
-      final rowText = rowController.text.trim();
-      final colText = colController.text.trim().toUpperCase();
-      if (rowText.isEmpty || colText.isEmpty) {
-        showSnack('Row and Column are required', isError: true);
+      final uploader = await getUploaderName();
+
+      final jsonStr =
+          await rootBundle.loadString('assets/credential.json');
+      final credsMap = json.decode(jsonStr);
+
+      final creds =
+          auth.ServiceAccountCredentials.fromJson(credsMap);
+
+      client = await auth.clientViaServiceAccount(
+        creds,
+        [sheets.SheetsApi.spreadsheetsScope],
+      );
+
+      final api = sheets.SheetsApi(client);
+
+      const spreadsheetId =
+          '1MwBfX4ZgM2Vr4LdT0ovSYBTb5pVkLuSWzfPR90zPK-Q';
+
+      final range = '$col$row';
+
+      // ---- CHECK EXISTING ----
+      final existing = await api.spreadsheets.values.get(
+        spreadsheetId,
+        range,
+      );
+
+      final hasData = existing.values != null &&
+          existing.values!.isNotEmpty &&
+          existing.values!.first.isNotEmpty &&
+          existing.values!.first.first.toString().isNotEmpty;
+
+      if (hasData) {
+        _snack(
+          'Cell $range already contains data',
+          error: true,
+        );
         return;
       }
 
-      final row = int.tryParse(rowText);
-      if (row == null || row <= 0) {
-        showSnack('Row must be a positive integer', isError: true);
-        return;
-      }
+      final finalValue = '$rawValue ($uploader)';
 
-      final value = dataController.text;
+      final body = sheets.ValueRange(
+        values: [
+          [finalValue]
+        ],
+      );
 
-      // Load service account credentials
-      final credsString = await rootBundle.loadString('assets/credentials.json');
-      credentialsJson = json.decode(credsString) as Map<String, dynamic>;
-      serviceAccountEmail = credentialsJson['client_email'] as String?;
-
-      final accountCredentials = auth.ServiceAccountCredentials.fromJson(credentialsJson);
-      final scopes = [sheets.SheetsApi.spreadsheetsScope];
-
-      // Create authenticated client (handle auth-specific errors with helpful guidance)
-      try {
-        client = await auth.clientViaServiceAccount(accountCredentials, scopes);
-      } catch (authErr, authSt) {
-        final authMsg = authErr.toString().toLowerCase();
-        debugPrint('Authentication error: $authErr');
-        debugPrint(authSt.toString());
-
-        if (authMsg.contains('400') || authMsg.contains('bad request') || authMsg.contains('invalid_grant') || authMsg.contains('invalid_client') || authMsg.contains('invalid_scope')) {
-          showSnack('Failed to obtain access credentials (HTTP 400). Common causes: use a service account JSON key (not OAuth client), enable the Sheets API in GCP, or share the spreadsheet with the service account email: ${serviceAccountEmail ?? '<service-account-email>'}', isError: true);
-        } else {
-          showSnack('Authentication failed: ${authErr.toString()}', isError: true);
-        }
-        return; // stop further processing - finally block will run
-      }
-
-      final sheetsApi = sheets.SheetsApi(client);
-
-      final spreadsheetId = '1MwBfX4ZgM2Vr4LdT0ovSYBTb5pVkLuSWzfPR90zPK-Q';
-      final range = '$colText$row';
-
-      final request = sheets.ValueRange.fromJson({
-        'range': range,
-        'values': [
-          [value]
-        ]
-      });
-
-      await sheetsApi.spreadsheets.values.update(
-        request,
+      await api.spreadsheets.values.update(
+        body,
         spreadsheetId,
         range,
         valueInputOption: 'RAW',
       );
 
-      showSnack('Upload successful');
-    } on FlutterError catch (e) {
-      // Asset/credential reading errors
-      debugPrint('Credential load error: ${e.toString()}');
-      showSnack('Could not load credentials.json. Make sure the file exists in assets and is listed in pubspec.yaml', isError: true);
-    } catch (e, st) {
-      final msg = e.toString().toLowerCase();
-      debugPrint('Upload error: $e');
-      debugPrint(st.toString());
-
-      if (msg.contains('400') || msg.contains('bad request') || msg.contains('invalid_grant') || msg.contains('invalid_client') || msg.contains('invalid_scope')) {
-        showSnack('Failed to obtain access credentials (HTTP 400). Common causes: use a service account JSON key (not OAuth client), enable the Sheets API in GCP, or share the spreadsheet with the service account email: ${serviceAccountEmail ?? '<service-account-email>'}', isError: true);
-      } else if (msg.contains('403') || msg.contains('forbidden') || msg.contains('permission')) {
-        showSnack('Permission denied (403). Make sure the spreadsheet is shared with the service account email: ${serviceAccountEmail ?? '<service-account-email>'}', isError: true);
-      } else {
-        showSnack('Upload failed: ${e.toString()}', isError: true);
-      }
+      _snack('Upload successful');
+    } catch (e) {
+      _snack('Upload failed:\n$e', error: true);
     } finally {
       client?.close();
-      if (mounted) setState(() => uploading = false);
+      if (mounted) setState(() => busy = false);
     }
   }
 
-  void showSnack(String message, {bool isError = false}) {
-    final snack = SnackBar(
-      content: Text(message),
-      backgroundColor: isError ? Colors.red : null,
+  void _snack(String msg, {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: error ? Colors.red : null,
+      ),
     );
-    ScaffoldMessenger.of(context).showSnackBar(snack);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Sheets Uploader')),
+      appBar: AppBar(title: const Text('Sheets Uploader Made by Mahdiisdumb')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            const Text(
+              'Enter the row, column, and value to upload to the Google Sheet.',
+            ),
             TextField(
-              controller: rowController,
-              decoration: InputDecoration(labelText: 'Row (number)'),
+              controller: rowCtrl,
+              decoration: const InputDecoration(labelText: 'Row'),
               keyboardType: TextInputType.number,
             ),
             TextField(
-              controller: colController,
-              decoration: InputDecoration(labelText: 'Column (letter)'),
+              controller: colCtrl,
+              decoration: const InputDecoration(labelText: 'Column'),
             ),
             TextField(
-              controller: dataController,
-              decoration: InputDecoration(labelText: 'Data'),
+              controller: dataCtrl,
+              decoration: const InputDecoration(labelText: 'Value'),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: uploading ? null : uploadToSheet,
-              child: uploading
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text('Upload'),
-            )
+              onPressed: busy ? null : upload,
+              child: busy
+                  ? const CircularProgressIndicator()
+                  : const Text('Upload'),
+            ),
           ],
         ),
       ),
