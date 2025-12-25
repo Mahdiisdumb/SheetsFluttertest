@@ -121,3 +121,5 @@ app.*.symbols
 /build/app
 assets/credentials.json
 assets/credential.json
+/build/flutter_assets
+/build/windows
